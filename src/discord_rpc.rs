@@ -404,6 +404,7 @@ impl Token {
             let status = res.status();
             let text = res.text().with_context(|| status)?;
             let res_body = serde_json::from_str::<ResBody>(&text).with_context(|| text)?;
+            res_body.access_token.save()?;
             Ok(res_body.access_token)
         }
 
@@ -428,9 +429,7 @@ impl Token {
     ) -> EyreMutexResult<Self> {
         Self::read().or_else(|e| match e.kind() {
             std::io::ErrorKind::NotFound => {
-                let token = Self::retrive(ipc_stream, discord_stream)?;
-                token.save().map_err(Err)?;
-                Ok(token)
+                Ok(Self::retrive(ipc_stream, discord_stream)?)
             }
             _ => Err(Err(e.into())),
         })
