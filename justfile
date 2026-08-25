@@ -1,15 +1,27 @@
 alias rd := run-daemon
-run-daemon:
-	cargo run --bin discord-mutexd
-
 alias rc := run-cli
-run-cli:
-	cargo run --bin mutex
-
-alias w := watch
-watch:
-	watchexec -r "just run-daemon"
-
 alias b := build
+alias w := watch
+alias pkg := package
+alias c := check
+
+run-daemon *ARGS:
+    cargo run --bin discord-mutexd -- {{ ARGS }}
+
+run-cli *ARGS:
+    cargo run --bin mutex -- {{ ARGS }}
+
+watch:
+    watchexec -r "just run-daemon"
+
+check:
+    cargo fmt & cargo c
+
 build:
-	cargo build -r --bin mutex & cargo build -r --bin discord-mutexd
+    cargo fmt & cargo build -r
+
+package-aur:
+    cargo aur
+
+package:
+    just package-aur
