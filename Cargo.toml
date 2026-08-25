@@ -1,0 +1,35 @@
+[package]
+name = "discord-mutex"
+version = "0.1.0"
+edition = "2024"
+authors = ["Adrien5902"]
+description = "A cli tool to control discord voice settings"
+repository = "https://github.com/Adrien5902/discord-mutex.git"
+license = "MIT"
+keywords= ["discord", "cli", "mute"]
+
+[[bin]]
+name = "mutex"
+path = "src/bin/cli.rs"
+
+[[bin]]
+name = "discord-mutexd"
+path = "src/bin/daemon.rs"
+
+[dependencies]
+clap = { version = "4.6.6", features = ["derive"] }
+color-eyre = "0.6.5"
+dirs = "6.0.0"
+num-derive = "0.5.1"
+num-traits = "0.2.19"
+reqwest = { version = "0.13.4", features = ["json", "blocking", "form"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.19"
+uuid = { version = "1.24.0", features = ["serde", "v4"] }
+
+[package.metadata.aur]
+depends = ["systemd", "discord"]
+files = [
+    ["discord-mutexd.service", "/usr/lib/systemd/user/discord-mutexd.service"],
+]
