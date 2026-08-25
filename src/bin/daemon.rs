@@ -3,7 +3,8 @@ use discord_mutex::{
     Action, Changer, IpcPayload, Request as IpcRequest, Response as IpcResponse, VoiceSetting,
     discord_rpc::{
         CLIENT_ID, Close, HandShake, Request as RpcRequest, RequestAuthenticate,
-        RequestGetVoiceSettings, RequestSetVoiceSettings, Token,
+        RequestGetVoiceSettings, RequestSelectVoiceChannel, RequestSelectVoiceChannelArgs,
+        RequestSetVoiceSettings, Token,
     },
     error::{DiscordRPCError, EyreMutexResult, MutexError},
     get_ipc_path,
@@ -136,6 +137,16 @@ fn handle_client(
             get_or_try_insert_with(discord_stream_opt, &mut || try_connect_discord(ipc_stream))?;
         match &req {
             IpcRequest::Set(changer) => apply_changer(discord_stream, changer),
+            IpcRequest::SelectVoiceChannel(channel_id) => {
+                RequestSelectVoiceChannel::send_with_res(
+                    discord_stream,
+                    RequestSelectVoiceChannelArgs {
+                        channel_id: channel_id.as_ref(),
+                        ..Default::default()
+                    },
+                )?;
+                Ok(())
+            }
         }
     })();
 

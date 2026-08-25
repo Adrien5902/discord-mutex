@@ -182,6 +182,8 @@ pub enum Command {
     Dispatch,
     GetVoiceSettings,
     SetVoiceSettings,
+    SelectVoiceChannel,
+    GetSelectVoiceChannel,
 }
 
 impl Display for EventKind {
@@ -428,9 +430,7 @@ impl Token {
         discord_stream: &mut UnixStream,
     ) -> EyreMutexResult<Self> {
         Self::read().or_else(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => {
-                Ok(Self::retrive(ipc_stream, discord_stream)?)
-            }
+            std::io::ErrorKind::NotFound => Ok(Self::retrive(ipc_stream, discord_stream)?),
             _ => Err(Err(e.into())),
         })
     }
@@ -511,4 +511,27 @@ impl RequestVoiceSettingsData {
             VoiceSetting::Mute => &mut self.mute,
         }
     }
+}
+
+pub type VoiceChannelId = Box<str>;
+
+pub struct RequestSelectVoiceChannel<'a>(PhantomData<RequestSelectVoiceChannelArgs<'a>>);
+
+#[derive(Serialize, Default)]
+pub struct RequestSelectVoiceChannelArgs<'a> {
+    pub channel_id: Option<&'a VoiceChannelId>,
+    pub timeout: i32,
+    pub force: bool,
+    pub navigate: bool,
+}
+
+#[derive(Deserialize)]
+pub struct RequestSelectVoiceChannelData {
+    pub channel_id: VoiceChannelId,
+}
+
+impl<'a> Request for RequestSelectVoiceChannel<'a> {
+    const COMMAND: Command = Command::SelectVoiceChannel;
+    type Args = RequestSelectVoiceChannelArgs<'a>;
+    type ResponseData = Option<RequestSelectVoiceChannelData>;
 }

@@ -29,7 +29,8 @@ fn main() -> Result<()> {
                         .help("What to set the setting to")
                         .value_parser(value_parser!(ActionParse)),
                 ),
-        );
+        )
+        .subcommand(Command::new("leave").about("Leave current voice call"));
 
     let matches = cli.get_matches();
     // This shoudln't panic required is set to true
@@ -43,6 +44,9 @@ fn main() -> Result<()> {
             let changer = Changer { action, setting };
 
             Request::Set(changer)
+        },
+        "leave" => {
+            Request::SelectVoiceChannel(None)
         }
         _ => panic!(), // This shoudln't happen
     };
