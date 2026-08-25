@@ -10,7 +10,7 @@ use color_eyre::{
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
 use std::{
     fmt::{self, Debug, Display},
     fs,
@@ -490,6 +490,7 @@ impl Request for RequestGetVoiceSettings {
 
 #[derive(Serialize, Deserialize)]
 pub struct RequestVoiceSettingsData {
+    pub mode: VoiceSettingsMode,
     pub automatic_gain_control: bool,
     pub echo_cancellation: bool,
     pub noise_suppression: bool,
@@ -502,6 +503,7 @@ pub struct RequestVoiceSettingsData {
 impl RequestVoiceSettingsData {
     pub fn get_setting(&mut self, setting: VoiceSetting) -> &mut bool {
         match setting {
+            VoiceSetting::PushToTalk => &mut self.mode.push_to_talk,
             VoiceSetting::AutomaticGainControl => &mut self.automatic_gain_control,
             VoiceSetting::EchoCancellation => &mut self.echo_cancellation,
             VoiceSetting::NoiseSuppression => &mut self.noise_suppression,
@@ -534,4 +536,51 @@ impl<'a> Request for RequestSelectVoiceChannel<'a> {
     const COMMAND: Command = Command::SelectVoiceChannel;
     type Args = RequestSelectVoiceChannelArgs<'a>;
     type ResponseData = Option<RequestSelectVoiceChannelData>;
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VoiceActivationModeType {
+    PushToTalk,
+    VoiceActivity,
+}
+
+impl VoiceActivationModeType {
+    pub fn from_push_to_talk_enabled(push_to_talk: bool) -> VoiceActivationModeType {
+        if push_to_talk {
+            Self::PushToTalk
+        } else {
+            Self::VoiceActivity
+        }
+    }
+
+    pub fn into_push_to_talk_enabled(self) -> bool {
+        match self {
+            Self::PushToTalk => true,
+            Self::VoiceActivity => false,
+        }
+    }
+}
+
+fn serialize_voice_activation_mode<S>(
+    push_to_talk: &bool,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    VoiceActivationModeType::from_push_to_talk_enabled(*push_to_talk).serialize(serializer)
+}
+
+fn deserialize_voice_activation_mode<'de, D>(deserializer : D) -> Result<bool, D::Error> where D: Deserializer<'de> {
+    Ok(VoiceActivationModeType::deserialize(deserializer)?.into_push_to_talk_enabled())
+}
+
+
+#[derive(Serialize, Deserialize)]
+pub struct VoiceSettingsMode {
+    #[serde(rename = "type")]
+    #[serde(serialize_with = "serialize_voice_activation_mode")]
+    #[serde(deserialize_with = "deserialize_voice_activation_mode")]
+    push_to_talk: bool,
 }

@@ -19,6 +19,7 @@ pub enum Action {
 
 #[derive(Clone, Copy, ValueEnum, Debug, PartialEq, Eq)]
 pub enum VoiceSetting {
+    PushToTalk,
     AutomaticGainControl,
     EchoCancellation,
     NoiseSuppression,
