@@ -134,7 +134,9 @@ fn handle_client(
     let error_prone = (|| {
         let discord_stream =
             get_or_try_insert_with(discord_stream_opt, &mut || try_connect_discord(ipc_stream))?;
-        apply_changer(discord_stream, &req.changer)
+        match &req {
+            IpcRequest::Set(changer) => apply_changer(discord_stream, changer),
+        }
     })();
 
     let res = match error_prone {

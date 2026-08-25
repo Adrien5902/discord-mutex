@@ -36,8 +36,8 @@ pub struct Changer {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct Request {
-    pub changer: Changer,
+pub enum Request {
+    Set(Changer)
 }
 
 #[repr(C)]
