@@ -585,20 +585,19 @@ impl VoiceActivationModeType {
     }
 }
 
-fn serialize_voice_activation_mode<S>(
-    push_to_talk: &bool,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_voice_activation_mode<S>(push_to_talk: &bool, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     VoiceActivationModeType::from_push_to_talk_enabled(*push_to_talk).serialize(serializer)
 }
 
-fn deserialize_voice_activation_mode<'de, D>(deserializer : D) -> Result<bool, D::Error> where D: Deserializer<'de> {
+fn deserialize_voice_activation_mode<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
     Ok(VoiceActivationModeType::deserialize(deserializer)?.into_push_to_talk_enabled())
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct VoiceSettingsMode {

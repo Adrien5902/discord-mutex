@@ -44,10 +44,8 @@ fn main() -> Result<()> {
             let changer = Changer { action, setting };
 
             Request::Set(changer)
-        },
-        "leave" => {
-            Request::SelectVoiceChannel(None)
         }
+        "leave" => Request::SelectVoiceChannel(None),
         _ => panic!(), // This shoudln't happen
     };
 

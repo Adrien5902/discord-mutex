@@ -2,7 +2,9 @@ use color_eyre::Result;
 use discord_mutex::{
     Action, Changer, IpcPayload, Request as IpcRequest, Response as IpcResponse, VoiceSetting,
     discord_rpc::{
-        CLIENT_ID, Close, HandShake, Ping, Request as RpcRequest, RequestAuthenticate, RequestGetVoiceSettings, RequestSelectVoiceChannel, RequestSelectVoiceChannelArgs, RequestSetVoiceSettings, Token
+        CLIENT_ID, Close, HandShake, Ping, Request as RpcRequest, RequestAuthenticate,
+        RequestGetVoiceSettings, RequestSelectVoiceChannel, RequestSelectVoiceChannelArgs,
+        RequestSetVoiceSettings, Token,
     },
     error::{DiscordRPCError, EyreMutexResult, MutexError},
     get_ipc_path,
@@ -107,10 +109,16 @@ fn apply_changer(discord_stream: &mut UnixStream, changer: &Changer) -> EyreMute
     let mut state = RequestGetVoiceSettings::send_with_res(discord_stream, ())?;
     let current_setting_value = state.get_setting(changer.setting);
     *current_setting_value = match changer.action {
-        Action::Force(bool) => bool,
+        Action::Force(force) => force,
         Action::Toggle => !*current_setting_value,
     };
 
+    // Also undeaf when unmuting
+    if changer.setting == VoiceSetting::Mute && !*current_setting_value {
+        state.deaf = false;
+    }
+
+    // Also mute when deafing
     if changer.setting == VoiceSetting::Deaf {
         // Small truth table helper
         // if mute && !deaf => mute
