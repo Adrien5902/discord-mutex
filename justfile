@@ -8,7 +8,7 @@ run-cli:
 
 alias w := watch
 watch:
-	watchexec "just run-daemon"
+	watchexec -r "just run-daemon"
 
 alias b := build
 build:
