@@ -2,7 +2,7 @@ use color_eyre::Result;
 use discord_mutex::{
     Action, Changer, IpcPayload, Request as IpcRequest, Response as IpcResponse, VoiceSetting,
     discord_rpc::{
-        CLIENT_ID, Close, HandShake, Request as RpcRequest, RequestAuthenticate,
+        CLIENT_ID, Close, HandShake, Ping, Request as RpcRequest, RequestAuthenticate,
         RequestGetVoiceSettings, RequestSetVoiceSettings, Token,
     },
     error::{DiscordRPCError, EyreMutexResult, MutexError},
@@ -132,8 +132,17 @@ fn handle_client(
     let req = IpcRequest::read(ipc_stream)?;
 
     let error_prone = (|| {
+        // Check if connection is still alive
+        if let Some(discord_stream) = discord_stream_opt {
+            if let Err(_) = Ping::send_with_res(discord_stream) {
+                // Ping failed, reset connection
+                *discord_stream_opt = None
+            }
+        }
+
         let discord_stream =
             get_or_try_insert_with(discord_stream_opt, &mut || try_connect_discord(ipc_stream))?;
+
         apply_changer(discord_stream, &req.changer)
     })();
 

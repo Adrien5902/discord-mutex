@@ -69,10 +69,15 @@ impl<T: Serialize> Payload<T> {
         W: Write,
     {
         let json = serde_json::to_vec(&self.body)?;
-        writer.write_all(&self.op.code().to_le_bytes())?;
-        writer.write_all(&(json.len() as u32).to_le_bytes())?;
-        writer.write_all(&json)?;
-        writer.flush()?;
+        (|| {
+            writer.write_all(&self.op.code().to_le_bytes())?;
+            writer.write_all(&(json.len() as u32).to_le_bytes())?;
+            writer.write_all(&json)?;
+            writer.flush()?;
+            Ok::<(), color_eyre::eyre::Report>(())
+        })()
+        .with_context(|| self.op)?;
+
         Ok(())
     }
 }
@@ -428,9 +433,7 @@ impl Token {
         discord_stream: &mut UnixStream,
     ) -> EyreMutexResult<Self> {
         Self::read().or_else(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => {
-                Ok(Self::retrive(ipc_stream, discord_stream)?)
-            }
+            std::io::ErrorKind::NotFound => Ok(Self::retrive(ipc_stream, discord_stream)?),
             _ => Err(Err(e.into())),
         })
     }
@@ -510,5 +513,23 @@ impl RequestVoiceSettingsData {
             VoiceSetting::Deaf => &mut self.deaf,
             VoiceSetting::Mute => &mut self.mute,
         }
+    }
+}
+
+pub struct Ping;
+impl Ping {
+    pub fn send_with_res<S>(stream: &mut S) -> EyreMutexResult<()>
+    where
+        S: Read + Write,
+    {
+        Payload::new(Op::Ping, ()).send(stream).map_err(Err)?;
+        let pong: Payload<()> = Payload::read(stream)?;
+        if pong.op != Op::Pong {
+            Err(Ok(MutexError::DiscordRPCError(
+                DiscordRPCError::UnknownOpCode,
+            )))?;
+        }
+
+        Ok(())
     }
 }
