@@ -1,7 +1,7 @@
 pub mod discord_rpc;
 pub mod error;
 
-use crate::error::MutexError;
+use crate::{discord_rpc::VoiceChannelId, error::MutexError};
 use clap::ValueEnum;
 use color_eyre::eyre::Result;
 use core::slice;
@@ -19,6 +19,7 @@ pub enum Action {
 
 #[derive(Clone, Copy, ValueEnum, Debug, PartialEq, Eq)]
 pub enum VoiceSetting {
+    PushToTalk,
     AutomaticGainControl,
     EchoCancellation,
     NoiseSuppression,
@@ -36,8 +37,10 @@ pub struct Changer {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct Request {
-    pub changer: Changer,
+pub enum Request {
+    Set(Changer),
+    // This is unsafe behaviour as for now and will segfault if some, see {<Request as IpcPayload>::read()}
+    SelectVoiceChannel(Option<VoiceChannelId>),
 }
 
 #[repr(C)]

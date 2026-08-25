@@ -2,8 +2,7 @@ use color_eyre::Result;
 use discord_mutex::{
     Action, Changer, IpcPayload, Request as IpcRequest, Response as IpcResponse, VoiceSetting,
     discord_rpc::{
-        CLIENT_ID, Close, HandShake, Ping, Request as RpcRequest, RequestAuthenticate,
-        RequestGetVoiceSettings, RequestSetVoiceSettings, Token,
+        CLIENT_ID, Close, HandShake, Ping, Request as RpcRequest, RequestAuthenticate, RequestGetVoiceSettings, RequestSelectVoiceChannel, RequestSelectVoiceChannelArgs, RequestSetVoiceSettings, Token
     },
     error::{DiscordRPCError, EyreMutexResult, MutexError},
     get_ipc_path,
@@ -143,7 +142,19 @@ fn handle_client(
         let discord_stream =
             get_or_try_insert_with(discord_stream_opt, &mut || try_connect_discord(ipc_stream))?;
 
-        apply_changer(discord_stream, &req.changer)
+        match &req {
+            IpcRequest::Set(changer) => apply_changer(discord_stream, changer),
+            IpcRequest::SelectVoiceChannel(channel_id) => {
+                RequestSelectVoiceChannel::send_with_res(
+                    discord_stream,
+                    RequestSelectVoiceChannelArgs {
+                        channel_id: channel_id.as_ref(),
+                        ..Default::default()
+                    },
+                )?;
+                Ok(())
+            }
+        }
     })();
 
     let res = match error_prone {
