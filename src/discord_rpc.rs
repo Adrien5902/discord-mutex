@@ -1,6 +1,6 @@
 use crate::{
     IpcPayload, VoiceSetting,
-    error::{DiscordErrorCode, DiscordRPCError, EyreMutexResult, MutexError},
+    error::{DiscordCodeRes, DiscordErrorCode, DiscordRPCError, EyreMutexResult, MutexError},
     get_config_path,
 };
 use color_eyre::{
@@ -10,7 +10,10 @@ use color_eyre::{
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use reqwest::blocking::Client;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{DeserializeOwned, Error},
+};
 use std::{
     fmt::{self, Debug, Display},
     fs,
@@ -444,18 +447,7 @@ impl Token {
 pub struct RequestAuthenticate<'a>(PhantomData<RequestAuthenticateArgs<'a>>);
 impl<'a> RequestAuthenticate<'a> {
     pub fn access_token_validation_failed(res: &EyreMutexResult<RequestAuthenticateData>) -> bool {
-        if let Err(e) = res {
-            if let Ok(mutex_error) = e {
-                if let MutexError::DiscordRPCError(rpc_error) = mutex_error {
-                    if let Some(code) = rpc_error.error_event_code()
-                        && code == DiscordErrorCode::InvalidAccessToken
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        false
+        DiscordCodeRes(res).is_discord_error_code(DiscordErrorCode::InvalidAccessToken)
     }
 }
 
@@ -538,13 +530,13 @@ impl Ping {
     }
 }
 
-pub type VoiceChannelId = Box<str>;
+pub type VoiceChannelId = u64;
 
-pub struct RequestSelectVoiceChannel<'a>(PhantomData<RequestSelectVoiceChannelArgs<'a>>);
+pub struct RequestSelectVoiceChannel;
 
 #[derive(Serialize, Default)]
-pub struct RequestSelectVoiceChannelArgs<'a> {
-    pub channel_id: Option<&'a VoiceChannelId>,
+pub struct RequestSelectVoiceChannelArgs {
+    pub channel_id: Option<String>,
     pub timeout: i32,
     pub force: bool,
     pub navigate: bool,
@@ -552,12 +544,22 @@ pub struct RequestSelectVoiceChannelArgs<'a> {
 
 #[derive(Deserialize)]
 pub struct RequestSelectVoiceChannelData {
-    pub channel_id: VoiceChannelId,
+    #[serde(deserialize_with = "deserialize_string_to_number")]
+    pub id: VoiceChannelId,
 }
 
-impl<'a> Request for RequestSelectVoiceChannel<'a> {
+fn deserialize_string_to_number<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(String::deserialize(deserializer)?
+        .parse()
+        .map_err(|e| Error::custom(format!("Failed to convert string to int, {}", e)))?)
+}
+
+impl<'a> Request for RequestSelectVoiceChannel {
     const COMMAND: Command = Command::SelectVoiceChannel;
-    type Args = RequestSelectVoiceChannelArgs<'a>;
+    type Args = RequestSelectVoiceChannelArgs;
     type ResponseData = Option<RequestSelectVoiceChannelData>;
 }
 

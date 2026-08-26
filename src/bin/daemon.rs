@@ -6,7 +6,7 @@ use discord_mutex::{
         RequestGetVoiceSettings, RequestSelectVoiceChannel, RequestSelectVoiceChannelArgs,
         RequestSetVoiceSettings, Token,
     },
-    error::{DiscordRPCError, EyreMutexResult, MutexError},
+    error::{DiscordCodeRes, DiscordErrorCode, DiscordRPCError, EyreMutexResult, MutexError},
     get_ipc_path,
 };
 use std::{
@@ -152,14 +152,24 @@ fn handle_client(
 
         match &req {
             IpcRequest::Set(changer) => apply_changer(discord_stream, changer),
-            IpcRequest::SelectVoiceChannel(channel_id) => {
-                RequestSelectVoiceChannel::send_with_res(
+            IpcRequest::SelectVoiceChannel(channel_id, force, navigate) => {
+                let res = RequestSelectVoiceChannel::send_with_res(
                     discord_stream,
                     RequestSelectVoiceChannelArgs {
-                        channel_id: channel_id.as_ref(),
+                        channel_id: channel_id.map(|inner| inner.to_string()),
+                        force: *force,
+                        navigate: *navigate,
                         ..Default::default()
                     },
-                )?;
+                );
+
+                if DiscordCodeRes(&res)
+                    .is_discord_error_code(DiscordErrorCode::UserAlreadyInVoiceChannel)
+                {
+                    return Err(Ok(MutexError::UserAlreadyInVoiceChannel));
+                }
+                res?;
+
                 Ok(())
             }
         }

@@ -12,6 +12,8 @@ pub enum MutexError {
         "Deamon wasn't started, make sure it's running, use: \"systemctl --user enable --now discord-mutexd\""
     )]
     DeamonNotStarted,
+    #[error("User already in a voice channel, you may wanna add --force arg and retry ")]
+    UserAlreadyInVoiceChannel,
     #[error("Deamon crashed unexpectedly look at error log")]
     Unknown,
 }
@@ -32,6 +34,7 @@ pub enum DiscordRPCError {
 #[repr(i32)]
 pub enum DiscordErrorCode {
     InvalidAccessToken = 4009,
+    UserAlreadyInVoiceChannel = 5003,
 }
 
 impl DiscordRPCError {
@@ -46,6 +49,23 @@ impl DiscordRPCError {
 impl Into<MutexError> for DiscordRPCError {
     fn into(self) -> MutexError {
         MutexError::DiscordRPCError(self)
+    }
+}
+
+#[repr(transparent)]
+pub struct DiscordCodeRes<'a, T>(pub &'a EyreMutexResult<T>);
+impl<'a, T> DiscordCodeRes<'a, T> {
+    pub fn is_discord_error_code(&self, code: DiscordErrorCode) -> bool {
+        if let Err(e) = self.0 {
+            if let Ok(e_m) = e {
+                if let MutexError::DiscordRPCError(e_rpc) = e_m {
+                    if let Some(e_code) = e_rpc.error_event_code() {
+                        return e_code == code;
+                    }
+                }
+            }
+        }
+        false
     }
 }
 

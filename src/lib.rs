@@ -11,9 +11,11 @@ use std::{
     path::PathBuf,
 };
 
+pub type Force = bool;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Action {
-    Force(bool),
+    Force(Force),
     Toggle,
 }
 
@@ -35,12 +37,13 @@ pub struct Changer {
     pub setting: VoiceSetting,
 }
 
+pub type Navigate = bool;
 #[derive(Debug)]
 #[repr(C)]
 pub enum Request {
     Set(Changer),
-    // This is unsafe behaviour as for now and will segfault if some, see {<Request as IpcPayload>::read()}
-    SelectVoiceChannel(Option<VoiceChannelId>),
+    /// None means leave channel
+    SelectVoiceChannel(Option<VoiceChannelId>, Force, Navigate),
 }
 
 #[repr(C)]

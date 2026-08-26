@@ -1,36 +1,47 @@
 use std::os::unix::net::UnixStream;
 
-use clap::{Arg, ArgAction, Command, ValueEnum, value_parser};
+use clap::{Arg, Command, ValueEnum, arg, value_parser};
 use color_eyre::eyre::Result;
 use discord_mutex::{
-    Action, Changer, IpcPayload, Request, Response, VoiceSetting, error::MutexError, get_ipc_path,
+    Action, Changer, IpcPayload, Request, Response, VoiceSetting, discord_rpc::VoiceChannelId,
+    error::MutexError, get_ipc_path,
 };
 
 fn main() -> Result<()> {
     color_eyre::install()?;
 
+    let set_cmd = Command::new("set")
+        .about("Set a voice setting, use \"mutex set --help\" for help")
+        .arg(
+            Arg::new("setting")
+                .required(true)
+                .help("The setting to set")
+                .value_parser(value_parser!(VoiceSetting)),
+        )
+        .arg(
+            Arg::new("action")
+                .required(true)
+                .help("What to set the setting to")
+                .value_parser(value_parser!(ActionParse)),
+        );
+    let join_cmd = Command::new("join")
+        .about("Join a voice channel")
+        .arg(arg!(-f --force "Force join voice channel, use when user is already in one"))
+        .arg(arg!(-n --navigate "Focuses the voice channel in the discord client"))
+        .arg(
+            Arg::new("channel_id")
+                .required(true)
+                .help("The voice channel id, can be obtained with discord developper mode")
+                .value_parser(value_parser!(VoiceChannelId)),
+        );
+    let leave_cmd = Command::new("leave").about("Leave current voice call");
+
     let cli = Command::new("mutex")
         .subcommand_required(true)
         .arg_required_else_help(true)
-        .subcommand(
-            Command::new("set")
-                .about("Set a voice setting, use \"mutex set --help\" for help")
-                .arg(
-                    Arg::new("setting")
-                        .action(ArgAction::Set)
-                        .required(true)
-                        .help("The setting to set")
-                        .value_parser(value_parser!(VoiceSetting)),
-                )
-                .arg(
-                    Arg::new("action")
-                        .action(ArgAction::Set)
-                        .required(true)
-                        .help("What to set the setting to")
-                        .value_parser(value_parser!(ActionParse)),
-                ),
-        )
-        .subcommand(Command::new("leave").about("Leave current voice call"));
+        .subcommand(set_cmd)
+        .subcommand(join_cmd)
+        .subcommand(leave_cmd);
 
     let matches = cli.get_matches();
     // This shoudln't panic required is set to true
@@ -45,7 +56,12 @@ fn main() -> Result<()> {
 
             Request::Set(changer)
         }
-        "leave" => Request::SelectVoiceChannel(None),
+        "join" => Request::SelectVoiceChannel(
+            Some(*sub_matches.get_one::<VoiceChannelId>("channel_id").unwrap()),
+            sub_matches.get_flag("force"),
+            sub_matches.get_flag("navigate")
+        ),
+        "leave" => Request::SelectVoiceChannel(None, false, false),
         _ => panic!(), // This shoudln't happen
     };
 
